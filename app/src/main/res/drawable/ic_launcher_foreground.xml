@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 서고(書庫) 앱 아이콘 — 책 모양 벡터 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 책 본체 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,28 L30,80 Q30,84 34,84 L74,84 Q78,84 78,80 L78,28 Q78,24 74,24 L34,24 Q30,24 30,28 Z"/>
+    <!-- 책 척추(등) -->
+    <path
+        android:fillColor="#E0E0E0"
+        android:pathData="M30,24 L38,24 L38,84 L30,84 Z"/>
+    <!-- 줄 1 -->
+    <path
+        android:fillColor="#4F6EF7"
+        android:pathData="M44,38 L72,38 Q73,38 73,39 L73,41 Q73,42 72,42 L44,42 Q43,42 43,41 L43,39 Q43,38 44,38 Z"/>
+    <!-- 줄 2 -->
+    <path
+        android:fillColor="#BFCBFC"
+        android:pathData="M44,48 L72,48 Q73,48 73,49 L73,51 Q73,52 72,52 L44,52 Q43,52 43,51 L43,49 Q43,48 44,48 Z"/>
+    <!-- 줄 3 -->
+    <path
+        android:fillColor="#BFCBFC"
+        android:pathData="M44,58 L64,58 Q65,58 65,59 L65,61 Q65,62 64,62 L44,62 Q43,62 43,61 L43,59 Q43,58 44,58 Z"/>
+</vector>

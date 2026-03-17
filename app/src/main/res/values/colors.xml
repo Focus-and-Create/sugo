@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="notion_background">#FFFFFFFF</color>
+    <color name="notion_surface">#FFF7F7F5</color>
+    <color name="notion_text">#FF37352F</color>
+    <color name="seogo_accent">#FF4F6EF7</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

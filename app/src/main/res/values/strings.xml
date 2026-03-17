@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">서고</string>
+    <string name="library_title">서고</string>
+    <string name="search_hint">씬 검색</string>
+    <string name="add_folder">서랍 추가</string>
+    <string name="import_html">HTML 가져오기</string>
+    <string name="memo">메모</string>
+    <string name="scene_count">%d개 씬</string>
+</resources>
