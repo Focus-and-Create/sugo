@@ -1,0 +1,20 @@
+# Android
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystore
+*.jks
+*.keystore
+
+# Claude Code local settings
+.claude/
+
+# Gradle wrapper jar (user downloads automatically)
+gradle/wrapper/gradle-wrapper.jar
