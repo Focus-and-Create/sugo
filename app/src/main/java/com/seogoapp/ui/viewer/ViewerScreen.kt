@@ -6,6 +6,8 @@ import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -24,11 +27,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.seogoapp.domain.importer.IMAGE_SCENE_MARKER
 import com.seogoapp.domain.parser.HtmlParser
 import com.seogoapp.ui.components.CharacterChip
 import com.seogoapp.ui.theme.NotionSurface
 import com.seogoapp.ui.theme.NotionText
 import com.seogoapp.ui.theme.NotionTextSub
+import java.io.File
 
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,36 +123,54 @@ fun ViewerScreen(
                 }
             }
 
-            // ── 본문: WebView or Raw HTML 텍스트 ──
-            if (uiState.showRawHtml) {
-                // 원본 HTML 텍스트 보기
-                Text(
-                    text = scene.contentHtml,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    ),
-                    color = NotionText,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            } else {
-                // WebView 렌더링
-                SceneWebView(
-                    html = scene.contentHtml,
-                    modifier = Modifier.fillMaxSize()
-                )
+            // ── 이미지 씬 vs 일반 씬 ──
+            val isImageScene = scene.contentHtml == IMAGE_SCENE_MARKER
+            val imagePaths = remember(scene.mediaUrls) {
+                if (isImageScene) HtmlParser.fromJson(scene.mediaUrls) else emptyList()
             }
 
-            // ── 메모 카드 ──
-            scene.memo?.let { memo ->
-                if (memo.isNotBlank()) {
-                    MemoCard(
-                        memo = memo,
-                        onEdit = viewModel::startMemoEdit,
-                        modifier = Modifier.padding(16.dp)
+            if (isImageScene && imagePaths.isNotEmpty()) {
+                // ── 웹툰 스타일 이미지 뷰어 ──
+                WebtoonImageViewer(
+                    imagePaths = imagePaths,
+                    memo = scene.memo,
+                    onMemoEdit = viewModel::startMemoEdit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f)
+                )
+            } else {
+                // ── 본문: WebView or Raw HTML 텍스트 ──
+                if (uiState.showRawHtml) {
+                    // 원본 HTML 텍스트 보기
+                    Text(
+                        text = scene.contentHtml,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        ),
+                        color = NotionText,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     )
+                } else {
+                    // WebView 렌더링
+                    SceneWebView(
+                        html = scene.contentHtml,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                // ── 메모 카드 ──
+                scene.memo?.let { memo ->
+                    if (memo.isNotBlank()) {
+                        MemoCard(
+                            memo = memo,
+                            onEdit = viewModel::startMemoEdit,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
                 }
             }
         }
@@ -251,6 +276,49 @@ private fun MemoCard(
             Spacer(Modifier.height(4.dp))
             Text(memo, style = MaterialTheme.typography.bodyMedium, color = NotionText)
         }
+    }
+}
+
+// ── 웹툰 스타일 이미지 뷰어 ──
+@Composable
+private fun WebtoonImageViewer(
+    imagePaths: List<String>,
+    memo: String?,
+    onMemoEdit: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        items(imagePaths) { path ->
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(File(path))
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // 메모 카드
+        memo?.let { m ->
+            if (m.isNotBlank()) {
+                item {
+                    MemoCard(
+                        memo = m,
+                        onEdit = onMemoEdit,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+        }
+
+        item { Spacer(Modifier.height(80.dp)) }
     }
 }
 

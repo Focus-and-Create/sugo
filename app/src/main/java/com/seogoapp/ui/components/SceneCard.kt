@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.seogoapp.data.model.SceneWithTags
+import com.seogoapp.domain.importer.IMAGE_SCENE_MARKER
 import com.seogoapp.domain.parser.HtmlParser
 import com.seogoapp.ui.theme.NotionTextSub
 import java.text.SimpleDateFormat
@@ -80,12 +81,18 @@ fun SceneCard(
             }
 
             // ── 하단 메타: toot 수 · 날짜 ──
+            val isImageScene = scene.contentHtml == IMAGE_SCENE_MARKER
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${scene.tootCount}개 톳",
+                    text = if (isImageScene) {
+                        val count = HtmlParser.fromJson(scene.mediaUrls).size
+                        "이미지 ${count}장"
+                    } else {
+                        "${scene.tootCount}개 톳"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
