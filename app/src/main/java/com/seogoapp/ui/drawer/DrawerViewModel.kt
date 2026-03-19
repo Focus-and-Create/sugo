@@ -161,6 +161,50 @@ class DrawerViewModel @Inject constructor(
         }
     }
 
+    fun importImage(uri: Uri) {
+        _uiState.update { it.copy(isImporting = true, importError = null) }
+        viewModelScope.launch {
+            when (val result = sceneImporter.importImageFromUri(folderId, uri)) {
+                is ImportResult.Success -> {
+                    _uiState.update {
+                        it.copy(isImporting = false, importSuccessTitle = result.title)
+                    }
+                    refreshMeta()
+                }
+                is ImportResult.NeedManualTitle -> {
+                    _uiState.update {
+                        it.copy(isImporting = false, importSuccessTitle = "이미지 추가됨")
+                    }
+                }
+                is ImportResult.Error -> {
+                    _uiState.update { it.copy(isImporting = false, importError = result.message) }
+                }
+            }
+        }
+    }
+
+    fun importMultipleImages(uris: List<Uri>) {
+        _uiState.update { it.copy(isImporting = true, importError = null) }
+        viewModelScope.launch {
+            when (val result = sceneImporter.importMultipleImagesFromUris(folderId, uris)) {
+                is ImportResult.Success -> {
+                    _uiState.update {
+                        it.copy(isImporting = false, importSuccessTitle = result.title)
+                    }
+                    refreshMeta()
+                }
+                is ImportResult.NeedManualTitle -> {
+                    _uiState.update {
+                        it.copy(isImporting = false, importSuccessTitle = "이미지 추가됨")
+                    }
+                }
+                is ImportResult.Error -> {
+                    _uiState.update { it.copy(isImporting = false, importError = result.message) }
+                }
+            }
+        }
+    }
+
     fun clearImportMessage() {
         _uiState.update { it.copy(importError = null, importSuccessTitle = null) }
     }
