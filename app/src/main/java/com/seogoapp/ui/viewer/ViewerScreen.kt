@@ -14,7 +14,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -65,6 +67,11 @@ fun ViewerScreen(
         return
     }
 
+    // 삭제 후 뒤로가기
+    LaunchedEffect(uiState.isDeleted) {
+        if (uiState.isDeleted) onBack()
+    }
+
     // 메모 편집 다이얼로그
     if (uiState.isMemoEditing) {
         MemoEditDialog(
@@ -74,6 +81,38 @@ fun ViewerScreen(
             onDismiss = viewModel::cancelMemoEdit
         )
     }
+
+    // 본문 편집 다이얼로그
+    if (uiState.isContentEditing) {
+        ContentEditDialog(
+            content = uiState.contentInput,
+            onContentChange = viewModel::onContentInput,
+            onSave = viewModel::saveContent,
+            onDismiss = viewModel::cancelContentEdit
+        )
+    }
+
+    // 삭제 확인 다이얼로그
+    if (uiState.isDeleteConfirming) {
+        AlertDialog(
+            onDismissRequest = viewModel::cancelDelete,
+            title = { Text("씬 삭제") },
+            text = { Text("'${scene.title}'을(를) 삭제할까요?\n삭제하면 되돌릴 수 없습니다.") },
+            confirmButton = {
+                TextButton(
+                    onClick = viewModel::deleteScene,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text("삭제") }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::cancelDelete) { Text("취소") }
+            }
+        )
+    }
+
+    val isImageScene = scene.contentHtml == IMAGE_SCENE_MARKER
 
     Scaffold(
         topBar = {
@@ -91,6 +130,15 @@ fun ViewerScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "뒤로")
                     }
                 },
+                actions = {
+                    IconButton(onClick = viewModel::showDeleteConfirm) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "삭제",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
@@ -99,8 +147,10 @@ fun ViewerScreen(
         bottomBar = {
             ViewerBottomBar(
                 onMemoClick = viewModel::startMemoEdit,
+                onEditContent = viewModel::startContentEdit,
                 onToggleRaw = viewModel::toggleRawHtml,
-                isRawMode = uiState.showRawHtml
+                isRawMode = uiState.showRawHtml,
+                showEditContent = !isImageScene
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -124,7 +174,6 @@ fun ViewerScreen(
             }
 
             // ── 이미지 씬 vs 일반 씬 ──
-            val isImageScene = scene.contentHtml == IMAGE_SCENE_MARKER
             val imagePaths = remember(scene.mediaUrls) {
                 if (isImageScene) HtmlParser.fromJson(scene.mediaUrls) else emptyList()
             }
@@ -234,8 +283,10 @@ private fun injectMobileStyle(html: String): String {
 @Composable
 private fun ViewerBottomBar(
     onMemoClick: () -> Unit,
+    onEditContent: () -> Unit,
     onToggleRaw: () -> Unit,
-    isRawMode: Boolean
+    isRawMode: Boolean,
+    showEditContent: Boolean
 ) {
     BottomAppBar(
         containerColor = MaterialTheme.colorScheme.background,
@@ -248,11 +299,19 @@ private fun ViewerBottomBar(
             Spacer(Modifier.width(4.dp))
             Text("메모")
         }
-        Spacer(Modifier.width(8.dp))
-        TextButton(onClick = onToggleRaw) {
-            Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(4.dp))
-            Text(if (isRawMode) "렌더" else "원본")
+        if (showEditContent) {
+            Spacer(Modifier.width(8.dp))
+            TextButton(onClick = onEditContent) {
+                Icon(Icons.Default.EditNote, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("편집")
+            }
+            Spacer(Modifier.width(8.dp))
+            TextButton(onClick = onToggleRaw) {
+                Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(if (isRawMode) "렌더" else "원본")
+            }
         }
         Spacer(Modifier.width(8.dp))
     }
@@ -320,6 +379,40 @@ private fun WebtoonImageViewer(
 
         item { Spacer(Modifier.height(80.dp)) }
     }
+}
+
+// ── 본문 편집 다이얼로그 ──
+@Composable
+private fun ContentEditDialog(
+    content: String,
+    onContentChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("본문 편집") },
+        text = {
+            OutlinedTextField(
+                value = content,
+                onValueChange = onContentChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 200.dp, max = 400.dp),
+                placeholder = { Text("씬 본문을 편집하세요") },
+                textStyle = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                ),
+                maxLines = Int.MAX_VALUE
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSave) { Text("저장") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("취소") }
+        }
+    )
 }
 
 // ── 메모 편집 다이얼로그 ──

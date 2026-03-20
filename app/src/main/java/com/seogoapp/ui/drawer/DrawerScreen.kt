@@ -2,6 +2,8 @@ package com.seogoapp.ui.drawer
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
+import com.seogoapp.data.model.SceneWithTags
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -28,7 +31,7 @@ import com.seogoapp.ui.components.SeogoSearchBar
 import com.seogoapp.ui.components.TagChip
 import com.seogoapp.ui.theme.NotionTextSub
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DrawerScreen(
     folderId: Long,
@@ -69,6 +72,30 @@ fun DrawerScreen(
             snackbarHostState.showSnackbar("'$it' 씬 추가됨")
             viewModel.clearImportMessage()
         }
+    }
+
+    // 삭제 확인 다이얼로그
+    var sceneToDelete by remember { mutableStateOf<SceneWithTags?>(null) }
+    sceneToDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { sceneToDelete = null },
+            title = { Text("씬 삭제") },
+            text = { Text("'${target.scene.title}'을(를) 삭제할까요?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteScene(target.scene)
+                        sceneToDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text("삭제") }
+            },
+            dismissButton = {
+                TextButton(onClick = { sceneToDelete = null }) { Text("취소") }
+            }
+        )
     }
 
     Scaffold(
@@ -153,7 +180,8 @@ fun DrawerScreen(
                 items(uiState.scenes, key = { it.scene.sceneId }) { sceneWithTags ->
                     SceneCard(
                         sceneWithTags = sceneWithTags,
-                        onClick = { onSceneClick(sceneWithTags.scene.sceneId) }
+                        onClick = { onSceneClick(sceneWithTags.scene.sceneId) },
+                        onLongClick = { sceneToDelete = sceneWithTags }
                     )
                 }
             }

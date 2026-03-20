@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.seogoapp.data.model.Folder
+import com.seogoapp.data.model.Scene
 import com.seogoapp.data.model.SceneWithTags
 import com.seogoapp.data.model.Tag
 import com.seogoapp.data.repository.FolderRepository
@@ -158,6 +159,13 @@ class DrawerViewModel @Inject constructor(
                     _uiState.update { it.copy(isImporting = false, importError = result.message) }
                 }
             }
+        }
+    }
+
+    fun deleteScene(scene: Scene) {
+        viewModelScope.launch {
+            sceneRepository.deleteScene(scene)
+            refreshMeta()
         }
     }
 

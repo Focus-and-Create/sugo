@@ -65,6 +65,10 @@ class SceneRepository @Inject constructor(
         sceneDao.updateScene(scene.copy(title = title))
     }
 
+    suspend fun updateContent(scene: Scene, contentHtml: String) {
+        sceneDao.updateScene(scene.copy(contentHtml = contentHtml))
+    }
+
     suspend fun updateTags(sceneId: String, tagNames: List<String>) {
         tagDao.deleteAllTagsForScene(sceneId)
         saveTagsForScene(sceneId, tagNames)

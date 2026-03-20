@@ -18,7 +18,11 @@ data class ViewerUiState(
     val isLoading: Boolean = true,
     val isMemoEditing: Boolean = false,
     val memoInput: String = "",
-    val showRawHtml: Boolean = false
+    val showRawHtml: Boolean = false,
+    val isContentEditing: Boolean = false,
+    val contentInput: String = "",
+    val isDeleteConfirming: Boolean = false,
+    val isDeleted: Boolean = false
 )
 
 @HiltViewModel
@@ -77,5 +81,47 @@ class ViewerViewModel @Inject constructor(
 
     fun toggleRawHtml() {
         _uiState.update { it.copy(showRawHtml = !it.showRawHtml) }
+    }
+
+    // ── 본문 편집 ──
+
+    fun startContentEdit() {
+        val html = _uiState.value.sceneWithTags?.scene?.contentHtml ?: ""
+        _uiState.update { it.copy(isContentEditing = true, contentInput = html) }
+    }
+
+    fun onContentInput(text: String) {
+        _uiState.update { it.copy(contentInput = text) }
+    }
+
+    fun saveContent() {
+        val scene = _uiState.value.sceneWithTags?.scene ?: return
+        viewModelScope.launch {
+            sceneRepository.updateContent(scene, _uiState.value.contentInput)
+            loadScene()
+            _uiState.update { it.copy(isContentEditing = false) }
+        }
+    }
+
+    fun cancelContentEdit() {
+        _uiState.update { it.copy(isContentEditing = false) }
+    }
+
+    // ── 씬 삭제 ──
+
+    fun showDeleteConfirm() {
+        _uiState.update { it.copy(isDeleteConfirming = true) }
+    }
+
+    fun cancelDelete() {
+        _uiState.update { it.copy(isDeleteConfirming = false) }
+    }
+
+    fun deleteScene() {
+        val scene = _uiState.value.sceneWithTags?.scene ?: return
+        viewModelScope.launch {
+            sceneRepository.deleteScene(scene)
+            _uiState.update { it.copy(isDeleteConfirming = false, isDeleted = true) }
+        }
     }
 }
