@@ -11,9 +11,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.FileOpen
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -41,20 +40,21 @@ fun DrawerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // SAF 파일 선택 런처 (HTML)
+    // SAF 파일 선택 런처 (이미지 + HTML 통합)
+    val context = androidx.compose.ui.platform.LocalContext.current
     val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let { viewModel.importScene(it) }
-    }
-
-    // 이미지 선택 런처 (여러 장 선택 가능)
-    val imageImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
         if (uris.size == 1) {
-            viewModel.importImage(uris.first())
-        } else if (uris.size > 1) {
+            val uri = uris.first()
+            val mime = context.contentResolver.getType(uri)
+            if (mime?.startsWith("image/") == true) {
+                viewModel.importImage(uri)
+            } else {
+                viewModel.importScene(uri)
+            }
+        } else {
             viewModel.importMultipleImages(uris)
         }
     }
@@ -115,15 +115,10 @@ fun DrawerScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            imageImportLauncher.launch(arrayOf("image/*"))
+                            importLauncher.launch(arrayOf("image/*", "text/html", "text/*"))
                         }
                     ) {
-                        Icon(Icons.Default.Image, contentDescription = "이미지 가져오기")
-                    }
-                    IconButton(
-                        onClick = { importLauncher.launch(arrayOf("text/html", "text/*")) }
-                    ) {
-                        Icon(Icons.Default.FileOpen, contentDescription = "HTML 가져오기")
+                        Icon(Icons.Default.Add, contentDescription = "씬 추가")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -245,7 +240,7 @@ private fun EmptyDrawerHint(modifier: Modifier = Modifier) {
     ) {
         Text("씬이 없습니다", style = MaterialTheme.typography.titleMedium, color = NotionTextSub)
         Spacer(Modifier.height(4.dp))
-        Text("↑ 상단 버튼으로 HTML 또는 이미지를 가져오세요", style = MaterialTheme.typography.bodySmall, color = NotionTextSub)
+        Text("↑ 상단 + 버튼으로 파일을 가져오세요", style = MaterialTheme.typography.bodySmall, color = NotionTextSub)
     }
 }
 

@@ -28,7 +28,9 @@ data class ViewerUiState(
     val isDeleted: Boolean = false,
     val isMoveDialogOpen: Boolean = false,
     val folders: List<FolderWithSceneCount> = emptyList(),
-    val isMoved: Boolean = false
+    val isMoved: Boolean = false,
+    val isTitleEditing: Boolean = false,
+    val titleInput: String = ""
 )
 
 @HiltViewModel
@@ -112,6 +114,35 @@ class ViewerViewModel @Inject constructor(
 
     fun cancelContentEdit() {
         _uiState.update { it.copy(isContentEditing = false) }
+    }
+
+    // ── 제목 편집 ──
+
+    fun startTitleEdit() {
+        val title = _uiState.value.sceneWithTags?.scene?.title ?: ""
+        _uiState.update { it.copy(isTitleEditing = true, titleInput = title) }
+    }
+
+    fun onTitleInput(text: String) {
+        _uiState.update { it.copy(titleInput = text) }
+    }
+
+    fun saveTitle() {
+        val scene = _uiState.value.sceneWithTags?.scene ?: return
+        val newTitle = _uiState.value.titleInput.trim()
+        if (newTitle.isBlank()) {
+            _uiState.update { it.copy(isTitleEditing = false) }
+            return
+        }
+        viewModelScope.launch {
+            sceneRepository.updateTitle(scene, newTitle)
+            loadScene()
+            _uiState.update { it.copy(isTitleEditing = false) }
+        }
+    }
+
+    fun cancelTitleEdit() {
+        _uiState.update { it.copy(isTitleEditing = false) }
     }
 
     // ── 씬 삭제 ──
