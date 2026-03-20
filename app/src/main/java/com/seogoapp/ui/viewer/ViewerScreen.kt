@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,7 +15,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.seogoapp.data.model.FolderWithSceneCount
 import com.seogoapp.domain.importer.IMAGE_SCENE_MARKER
 import com.seogoapp.domain.parser.HtmlParser
 import com.seogoapp.ui.components.CharacterChip
@@ -65,6 +71,11 @@ fun ViewerScreen(
         return
     }
 
+    // 삭제/이동 후 뒤로가기
+    LaunchedEffect(uiState.isDeleted, uiState.isMoved) {
+        if (uiState.isDeleted || uiState.isMoved) onBack()
+    }
+
     // 메모 편집 다이얼로그
     if (uiState.isMemoEditing) {
         MemoEditDialog(
@@ -74,6 +85,48 @@ fun ViewerScreen(
             onDismiss = viewModel::cancelMemoEdit
         )
     }
+
+    // 본문 편집 다이얼로그
+    if (uiState.isContentEditing) {
+        ContentEditDialog(
+            content = uiState.contentInput,
+            onContentChange = viewModel::onContentInput,
+            onSave = viewModel::saveContent,
+            onDismiss = viewModel::cancelContentEdit
+        )
+    }
+
+    // 삭제 확인 다이얼로그
+    if (uiState.isDeleteConfirming) {
+        AlertDialog(
+            onDismissRequest = viewModel::cancelDelete,
+            title = { Text("씬 삭제") },
+            text = { Text("'${scene.title}'을(를) 삭제할까요?\n삭제하면 되돌릴 수 없습니다.") },
+            confirmButton = {
+                TextButton(
+                    onClick = viewModel::deleteScene,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text("삭제") }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::cancelDelete) { Text("취소") }
+            }
+        )
+    }
+
+    // 폴더 이동 다이얼로그
+    if (uiState.isMoveDialogOpen) {
+        MoveToFolderDialog(
+            folders = uiState.folders,
+            currentFolderId = scene.folderId,
+            onSelectFolder = viewModel::moveToFolder,
+            onDismiss = viewModel::closeMoveDialog
+        )
+    }
+
+    val isImageScene = scene.contentHtml == IMAGE_SCENE_MARKER
 
     Scaffold(
         topBar = {
@@ -91,6 +144,15 @@ fun ViewerScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "뒤로")
                     }
                 },
+                actions = {
+                    IconButton(onClick = viewModel::showDeleteConfirm) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "삭제",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
@@ -99,8 +161,11 @@ fun ViewerScreen(
         bottomBar = {
             ViewerBottomBar(
                 onMemoClick = viewModel::startMemoEdit,
+                onEditContent = viewModel::startContentEdit,
+                onMoveClick = viewModel::openMoveDialog,
                 onToggleRaw = viewModel::toggleRawHtml,
-                isRawMode = uiState.showRawHtml
+                isRawMode = uiState.showRawHtml,
+                showEditContent = !isImageScene
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -124,7 +189,6 @@ fun ViewerScreen(
             }
 
             // ── 이미지 씬 vs 일반 씬 ──
-            val isImageScene = scene.contentHtml == IMAGE_SCENE_MARKER
             val imagePaths = remember(scene.mediaUrls) {
                 if (isImageScene) HtmlParser.fromJson(scene.mediaUrls) else emptyList()
             }
@@ -234,8 +298,11 @@ private fun injectMobileStyle(html: String): String {
 @Composable
 private fun ViewerBottomBar(
     onMemoClick: () -> Unit,
+    onEditContent: () -> Unit,
+    onMoveClick: () -> Unit,
     onToggleRaw: () -> Unit,
-    isRawMode: Boolean
+    isRawMode: Boolean,
+    showEditContent: Boolean
 ) {
     BottomAppBar(
         containerColor = MaterialTheme.colorScheme.background,
@@ -249,10 +316,24 @@ private fun ViewerBottomBar(
             Text("메모")
         }
         Spacer(Modifier.width(8.dp))
-        TextButton(onClick = onToggleRaw) {
-            Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(18.dp))
+        TextButton(onClick = onMoveClick) {
+            Icon(Icons.Default.DriveFileMove, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(4.dp))
-            Text(if (isRawMode) "렌더" else "원본")
+            Text("이동")
+        }
+        if (showEditContent) {
+            Spacer(Modifier.width(8.dp))
+            TextButton(onClick = onEditContent) {
+                Icon(Icons.Default.EditNote, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("편집")
+            }
+            Spacer(Modifier.width(8.dp))
+            TextButton(onClick = onToggleRaw) {
+                Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(if (isRawMode) "렌더" else "원본")
+            }
         }
         Spacer(Modifier.width(8.dp))
     }
@@ -322,6 +403,40 @@ private fun WebtoonImageViewer(
     }
 }
 
+// ── 본문 편집 다이얼로그 ──
+@Composable
+private fun ContentEditDialog(
+    content: String,
+    onContentChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("본문 편집") },
+        text = {
+            OutlinedTextField(
+                value = content,
+                onValueChange = onContentChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 200.dp, max = 400.dp),
+                placeholder = { Text("씬 본문을 편집하세요") },
+                textStyle = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                ),
+                maxLines = Int.MAX_VALUE
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSave) { Text("저장") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("취소") }
+        }
+    )
+}
+
 // ── 메모 편집 다이얼로그 ──
 @Composable
 private fun MemoEditDialog(
@@ -347,6 +462,77 @@ private fun MemoEditDialog(
         confirmButton = {
             TextButton(onClick = onSave) { Text("저장") }
         },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("취소") }
+        }
+    )
+}
+
+// ── 폴더 이동 다이얼로그 ──
+@Composable
+private fun MoveToFolderDialog(
+    folders: List<FolderWithSceneCount>,
+    currentFolderId: Long,
+    onSelectFolder: (Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("다른 서랍으로 이동") },
+        text = {
+            Column {
+                if (folders.isEmpty()) {
+                    Text("이동할 서랍이 없습니다.", color = NotionTextSub)
+                } else {
+                    folders.forEach { folderWithCount ->
+                        val folder = folderWithCount.folder
+                        val isCurrent = folder.folderId == currentFolderId
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isCurrent) {
+                                    onSelectFolder(folder.folderId)
+                                }
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = if (isCurrent) NotionTextSub
+                                       else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = folder.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isCurrent) NotionTextSub
+                                            else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${folderWithCount.sceneCount}개 씬",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = NotionTextSub
+                                )
+                            }
+                            if (isCurrent) {
+                                Text(
+                                    "현재",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NotionTextSub
+                                )
+                            }
+                        }
+                        if (folder != folders.last().folder) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("취소") }
         }

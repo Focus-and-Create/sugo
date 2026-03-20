@@ -3,7 +3,10 @@ package com.seogoapp.ui.viewer
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.seogoapp.data.model.Folder
+import com.seogoapp.data.model.FolderWithSceneCount
 import com.seogoapp.data.model.SceneWithTags
+import com.seogoapp.data.repository.FolderRepository
 import com.seogoapp.data.repository.SceneRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,13 +21,21 @@ data class ViewerUiState(
     val isLoading: Boolean = true,
     val isMemoEditing: Boolean = false,
     val memoInput: String = "",
-    val showRawHtml: Boolean = false
+    val showRawHtml: Boolean = false,
+    val isContentEditing: Boolean = false,
+    val contentInput: String = "",
+    val isDeleteConfirming: Boolean = false,
+    val isDeleted: Boolean = false,
+    val isMoveDialogOpen: Boolean = false,
+    val folders: List<FolderWithSceneCount> = emptyList(),
+    val isMoved: Boolean = false
 )
 
 @HiltViewModel
 class ViewerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val sceneRepository: SceneRepository
+    private val sceneRepository: SceneRepository,
+    private val folderRepository: FolderRepository
 ) : ViewModel() {
 
     private val sceneId: String = checkNotNull(savedStateHandle["sceneId"])
@@ -77,5 +88,75 @@ class ViewerViewModel @Inject constructor(
 
     fun toggleRawHtml() {
         _uiState.update { it.copy(showRawHtml = !it.showRawHtml) }
+    }
+
+    // ── 본문 편집 ──
+
+    fun startContentEdit() {
+        val html = _uiState.value.sceneWithTags?.scene?.contentHtml ?: ""
+        _uiState.update { it.copy(isContentEditing = true, contentInput = html) }
+    }
+
+    fun onContentInput(text: String) {
+        _uiState.update { it.copy(contentInput = text) }
+    }
+
+    fun saveContent() {
+        val scene = _uiState.value.sceneWithTags?.scene ?: return
+        viewModelScope.launch {
+            sceneRepository.updateContent(scene, _uiState.value.contentInput)
+            loadScene()
+            _uiState.update { it.copy(isContentEditing = false) }
+        }
+    }
+
+    fun cancelContentEdit() {
+        _uiState.update { it.copy(isContentEditing = false) }
+    }
+
+    // ── 씬 삭제 ──
+
+    fun showDeleteConfirm() {
+        _uiState.update { it.copy(isDeleteConfirming = true) }
+    }
+
+    fun cancelDelete() {
+        _uiState.update { it.copy(isDeleteConfirming = false) }
+    }
+
+    fun deleteScene() {
+        val scene = _uiState.value.sceneWithTags?.scene ?: return
+        viewModelScope.launch {
+            sceneRepository.deleteScene(scene)
+            _uiState.update { it.copy(isDeleteConfirming = false, isDeleted = true) }
+        }
+    }
+
+    // ── 폴더 이동 ──
+
+    fun openMoveDialog() {
+        viewModelScope.launch {
+            folderRepository.getAllFolders().collect { folders ->
+                _uiState.update {
+                    it.copy(isMoveDialogOpen = true, folders = folders)
+                }
+            }
+        }
+    }
+
+    fun closeMoveDialog() {
+        _uiState.update { it.copy(isMoveDialogOpen = false) }
+    }
+
+    fun moveToFolder(targetFolderId: Long) {
+        val scene = _uiState.value.sceneWithTags?.scene ?: return
+        if (scene.folderId == targetFolderId) {
+            _uiState.update { it.copy(isMoveDialogOpen = false) }
+            return
+        }
+        viewModelScope.launch {
+            sceneRepository.moveScene(scene, targetFolderId)
+            _uiState.update { it.copy(isMoveDialogOpen = false, isMoved = true) }
+        }
     }
 }
