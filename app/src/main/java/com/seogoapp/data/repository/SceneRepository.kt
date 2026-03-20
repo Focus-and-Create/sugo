@@ -69,6 +69,11 @@ class SceneRepository @Inject constructor(
         sceneDao.updateScene(scene.copy(contentHtml = contentHtml))
     }
 
+    suspend fun moveScene(scene: Scene, targetFolderId: Long) {
+        val maxOrder = sceneDao.getMaxSortOrder(targetFolderId) ?: -1
+        sceneDao.updateScene(scene.copy(folderId = targetFolderId, sortOrder = maxOrder + 1))
+    }
+
     suspend fun updateTags(sceneId: String, tagNames: List<String>) {
         tagDao.deleteAllTagsForScene(sceneId)
         saveTagsForScene(sceneId, tagNames)
