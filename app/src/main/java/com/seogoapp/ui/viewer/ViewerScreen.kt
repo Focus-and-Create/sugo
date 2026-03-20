@@ -15,7 +15,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
@@ -86,6 +85,16 @@ fun ViewerScreen(
         )
     }
 
+    // 제목 편집 다이얼로그
+    if (uiState.isTitleEditing) {
+        TitleEditDialog(
+            title = uiState.titleInput,
+            onTitleChange = viewModel::onTitleInput,
+            onSave = viewModel::saveTitle,
+            onDismiss = viewModel::cancelTitleEdit
+        )
+    }
+
     // 본문 편집 다이얼로그
     if (uiState.isContentEditing) {
         ContentEditDialog(
@@ -136,21 +145,13 @@ fun ViewerScreen(
                         scene.title,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable { viewModel.startTitleEdit() }
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "뒤로")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = viewModel::showDeleteConfirm) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "삭제",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -457,6 +458,35 @@ private fun MemoEditDialog(
                     .heightIn(min = 100.dp),
                 placeholder = { Text("씬에 대한 메모를 남겨보세요") },
                 maxLines = 8
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSave) { Text("저장") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("취소") }
+        }
+    )
+}
+
+// ── 제목 편집 다이얼로그 ──
+@Composable
+private fun TitleEditDialog(
+    title: String,
+    onTitleChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("씬 이름 변경") },
+        text = {
+            OutlinedTextField(
+                value = title,
+                onValueChange = onTitleChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("씬 이름을 입력하세요") },
+                singleLine = true
             )
         },
         confirmButton = {
